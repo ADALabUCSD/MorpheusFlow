@@ -19,8 +19,8 @@ class Dataset(object):
     def __init__(self, s, k, r, y):
         '''
         :param s: data object (entity table)
-        :param k: list of data objects (key map)
-        :param r: list of data objects (attribute table)
+        :param k: data object (key map)
+        :param r: data object (attribute table)
         :param y: data object (labels)
         '''
         self._k = [tf.data.Dataset.from_tensor_slices(ki) for ki in k.read()]
@@ -75,25 +75,53 @@ class Dataset(object):
         self.__start__()
         return self
 
+    def prefetch(self, fetch_size):
+        '''
+        Prefetch elements from this dataset.
+        '''
+        self._dataset = self._dataset.prefetch(fetch_size)
+        self.__start__()
+        return self
+
     def get_next(self):
         '''
         :return: batched x and y
         '''
+        import time
+        n_cost = []
+        start = time.time()
         next_element = self._sess.run(self._next_element)
-
+        n_cost.append(time.time() - start)
         if self._sparse:
             if self._s is None:
                 x = sp.hstack([r[next_element[i]] for i, r in enumerate(self._r)])
             else:
+                start = time.time()
                 s = ct.convert_sparse_tensor_to_csr(next_element[0])
-                x = sp.hstack([s] + [r[next_element[i + 1]] for i, r in enumerate(self._r)])
-
-            return ct.convert_coo_to_sparse_value(x), next_element[-1]
+                n_cost.append(time.time() - start)
+                start = time.time()
+                tmp = [r[next_element[i + 1]] for i, r in enumerate(self._r)]
+                n_cost.append(time.time() - start)
+                start = time.time()
+                x = sp.hstack([s] + tmp)
+                n_cost.append(time.time() - start)
+                # x = sp.hstack([s] + [r[next_element[i + 1]] for i, r in enumerate(self._r)])
+            start = time.time()
+            ran = ct.convert_coo_to_sparse_value(x)
+            n_cost.append(time.time() - start)
+            return ran, next_element[-1], n_cost
+            # return ct.convert_coo_to_sparse_value(x), next_element[-1], n_cost
         else:
             if self._s is None:
                 x = np.hstack([r[next_element[i]] for i, r in enumerate(self._r)])
             else:
                 s = np.mat(next_element[0])
-                x = np.hstack([s] + [r[next_element[i + 1]] for i, r in enumerate(self._r)])
-            return x, next_element[-1]
+                start = time.time()
+                tmp = [r[next_element[i + 1]] for i, r in enumerate(self._r)]
+                n_cost.append(time.time() - start)
+                start = time.time()
+                x = np.hstack([s] + tmp)
+                n_cost.append(time.time() - start)
+                # x = np.hstack([s] + [r[next_element[i + 1]] for i, r in enumerate(self._r)])
+            return x, next_element[-1], n_cost
 

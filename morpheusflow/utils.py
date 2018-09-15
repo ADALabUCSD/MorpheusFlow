@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import numpy as np
 import tensorflow as tf
 import scipy.sparse as sp
@@ -26,6 +27,11 @@ class Converter(object):
     def convert_sparse_tensor_to_coo(tensor):
         indices = np.array(tensor.indices)
         return sp.coo_matrix((tensor.values, (indices[:,0], indices[:, 1])), shape=tensor.dense_shape)
+
+    @staticmethod
+    def convert_sparse_tensor_to_csc(tensor):
+        indices = np.array(tensor.indices)
+        return sp.csc_matrix((tensor.values, (indices[:,0], indices[:, 1])), shape=tensor.dense_shape)
 
     @staticmethod
     def convert_sparse_matrix_to_sparse_tensor(sparse):
@@ -52,6 +58,11 @@ class Converter(object):
         return tf.SparseTensor(indices, csr.data, csr.shape)
 
     @staticmethod
+    def convert_csc_to_sparse_tensor(csc):
+        indices = np.mat(csc.nonzero()).transpose()
+        return tf.SparseTensor(indices, csc.data, csc.shape)
+
+    @staticmethod
     def convert_coo_to_sparse_value(coo):
         indices = np.mat([coo.row, coo.col]).transpose()
         return tf.SparseTensorValue(indices, coo.data, coo.shape)
@@ -60,3 +71,8 @@ class Converter(object):
     def convert_csr_to_sparse_value(csr):
         indices = np.mat(csr.nonzero()).transpose()
         return tf.SparseTensorValue(indices, csr.data, csr.shape)
+
+    @staticmethod
+    def convert_csc_to_sparse_value(csc):
+        indices = np.mat(csc.nonzero()).transpose()
+        return tf.SparseTensorValue(indices, csc.data, csc.shape)
